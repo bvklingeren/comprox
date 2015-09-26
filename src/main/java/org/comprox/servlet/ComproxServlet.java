@@ -1,15 +1,20 @@
 package org.comprox.servlet;
 
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.comprox.parser.HtmlRequest;
-import org.comprox.parser.HtmlResponse;
-import org.comprox.template.TemplateSource;
-import org.comprox.template.servlet.ServletContextTemplateSource;
+import org.comprox.fragment.source.FragmentSource;
 import org.comprox.fragment.source.http.HttpFragmentSource;
-import org.comprox.parser.atto.AttoHtmlParser;
+import org.comprox.servlet.backend.Backend;
+import org.comprox.servlet.backend.passthrough.PassthroughBackend;
+import org.comprox.servlet.backend.passthrough.RequestFactory;
+import org.comprox.servlet.backend.template.TemplateBackend;
+import org.comprox.template.TemplateFactory;
+import org.comprox.template.parser.TemplateParser;
+import org.comprox.template.parser.atto.AttoTemplateParser;
+import org.comprox.template.source.TemplateSource;
+import org.comprox.template.source.servlet.ServletContextTemplateSource;
 
 import java.io.IOException;
-import java.net.URI;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -23,25 +28,19 @@ public class ComproxServlet extends HttpServlet {
 
     private static final long serialVersionUID = -4458728973722372658L;
 
-    /**
-     * Key for content length header.
-     */
-    private static final String STRING_CONTENT_LENGTH_HEADER_NAME = "Content-Length";
-    /**
-     * Key for host header
-     */
-    private static final String STRING_HOST_HEADER_NAME = "Host";
-
-    private AttoHtmlParser htmlParser;
+    private TemplateFactory templateFactory;
+    private CloseableHttpClient passthroughBackendHttpClient;
 
     @Override
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
 
-        final TemplateSource templateSource = createTemplateSource(config);
-        final HttpFragmentSource fragmentSource = createFragmentSource();
+        TemplateSource templateSource = createTemplateSource(config);
+        FragmentSource fragmentSource = createFragmentSource();
+        TemplateParser templateParser = new AttoTemplateParser();
+        templateFactory = new TemplateFactory(templateSource, fragmentSource, templateParser);
 
-        htmlParser = new AttoHtmlParser(templateSource, fragmentSource);
+        passthroughBackendHttpClient = HttpClients.createMinimal();
     }
 
     private TemplateSource createTemplateSource(ServletConfig config) {
@@ -55,27 +54,21 @@ public class ComproxServlet extends HttpServlet {
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        final String method = request.getMethod();
-        if ("GET".equals(method)) {
-            doGet(request, response);
+        Backend backend;
+
+        if (isPassthroughRequest(request)) {
+            backend = new PassthroughBackend(request, response, passthroughBackendHttpClient, new RequestFactory());
         } else {
-            passThrough(request, response);
+            backend = new TemplateBackend(request, response, templateFactory);
         }
+
+        backend.handleRequest();
     }
 
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        final URI uri = URI.create(request.getRequestURI());
+    private boolean isPassthroughRequest(HttpServletRequest request) {
+        final String method = request.getMethod();
+        final String contentType = request.getContentType();
 
-        log("Handling request to path: " + uri.getPath());
-
-        htmlParser.parse(new HtmlRequest(uri.getPath()), new HtmlResponse(response.getWriter()));
-
-        log("Finished handling request to path: " + uri.getPath());
-    }
-
-    private void passThrough(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        log("Passing through request " + request.getPathInfo());
-        response.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED);
+        return !"GET".equals(method) || !"text/html".equals(contentType) || !"html".equals(contentType);
     }
 }

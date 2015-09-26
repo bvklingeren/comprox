@@ -1,6 +1,6 @@
-package org.comprox.template.classpath;
+package org.comprox.template.source.classpath;
 
-import org.comprox.template.TemplateSource;
+import org.comprox.template.source.TemplateSource;
 import org.comprox.template.TemplateNotFoundException;
 
 import java.io.InputStream;

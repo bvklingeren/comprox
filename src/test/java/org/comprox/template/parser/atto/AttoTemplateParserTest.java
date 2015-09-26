@@ -1,20 +1,17 @@
-package org.comprox.parser.atto;
+package org.comprox.template.parser.atto;
 
-import org.comprox.parser.HtmlRequest;
-import org.comprox.parser.HtmlResponse;
-import org.comprox.template.classpath.ClasspathTemplateSource;
-import org.comprox.fragment.source.memory.MemoryFragmentSource;
-import org.comprox.parser.HtmlParser;
+import org.comprox.template.parser.FragmentFactory;
+import org.comprox.template.parser.TemplateParser;
+import org.comprox.template.source.classpath.ClasspathTemplateSource;
 import org.junit.Test;
 
+import java.io.Reader;
 import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-public class AttoHtmlParserTest {
+public class AttoTemplateParserTest {
 
     private static final String NO_DIRECTIVES =
             "<html>\n" +
@@ -41,15 +38,20 @@ public class AttoHtmlParserTest {
     }
 
     private void verifyParseResult(String location, String result) {
-        HtmlParser parser = new AttoHtmlParser(new ClasspathTemplateSource(), new MemoryFragmentSource(createFragmentMap()));
+        TemplateParser parser = new AttoTemplateParser();
         final StringWriter writer = new StringWriter();
-        parser.parse(new HtmlRequest(location), new HtmlResponse(writer));
+        parser.parse(readTemplate(location), new FragmentFactoryStub(), writer);
         assertThat(writer.toString(), is(result));
     }
 
-    private Map<String, String> createFragmentMap() {
-        final HashMap<String, String> map = new HashMap<String, String>();
-        map.put("test-url", "<div>test</div>");
-        return map;
+    private Reader readTemplate(String location) {
+        return new ClasspathTemplateSource().getTemplate(location);
+    }
+
+    private class FragmentFactoryStub implements FragmentFactory {
+        @Override
+        public String newFragment(String location) {
+            return location.equals("test-url") ? "<div>test</div>" : null;
+        }
     }
 }

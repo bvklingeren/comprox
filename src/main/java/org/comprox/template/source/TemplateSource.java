@@ -1,4 +1,6 @@
-package org.comprox.template;
+package org.comprox.template.source;
+
+import org.comprox.template.TemplateNotFoundException;
 
 import java.io.Reader;
 

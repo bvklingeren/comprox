@@ -1,31 +1,27 @@
-package org.comprox.parser.atto;
+package org.comprox.template.parser.atto;
 
 import org.attoparser.AbstractChainedMarkupHandler;
 import org.attoparser.MarkupParser;
 import org.attoparser.ParseException;
 import org.attoparser.output.OutputMarkupHandler;
-import org.comprox.fragment.Fragment;
-import org.comprox.fragment.FragmentRequest;
-import org.comprox.fragment.source.FragmentSource;
-import org.comprox.parser.HtmlRequest;
-import org.comprox.parser.HtmlResponse;
+import org.comprox.template.parser.FragmentFactory;
+
+import java.io.Writer;
 
 /**
  *
  */
 public class FragmentMarkupHandler extends AbstractChainedMarkupHandler {
 
-    private final HtmlRequest request;
-    private final FragmentSource fragmentSource;
     private final MarkupParser markupParser;
+    private final FragmentFactory fragmentFactory;
 
     private String fragmentContent;
 
-    protected FragmentMarkupHandler(HtmlRequest request, HtmlResponse response, FragmentSource fragmentSource, MarkupParser markupParser) {
-        super(new OutputMarkupHandler(response.getWriter()));
-        this.request = request;
-        this.fragmentSource = fragmentSource;
+    public FragmentMarkupHandler(MarkupParser markupParser, FragmentFactory fragmentFactory, Writer writer) {
+        super(new OutputMarkupHandler(writer));
         this.markupParser = markupParser;
+        this.fragmentFactory = fragmentFactory;
     }
 
     @Override
@@ -36,18 +32,12 @@ public class FragmentMarkupHandler extends AbstractChainedMarkupHandler {
         String attributeName = new String(buffer, nameOffset, nameLen);
         if (attributeName.equals("cp-url")) {
             final String location = new String(buffer, valueContentOffset, valueContentLen);
-            fragmentContent = retrieveFragmentContent(location);
+            fragmentContent = fragmentFactory.newFragment(location);
         } else {
             getNext().handleAttribute(buffer, nameOffset, nameLen, nameLine, nameCol, operatorOffset, operatorLen,
                     operatorLine, operatorCol, valueContentOffset, valueContentLen, valueOuterOffset, valueOuterLen,
                     valueLine, valueCol);
         }
-    }
-
-    private String retrieveFragmentContent(String location) {
-        final FragmentRequest fragmentRequest = request.createFragmentRequest(location);
-        final Fragment fragment = new Fragment(fragmentSource, fragmentRequest);
-        return fragment.render();
     }
 
     /**
