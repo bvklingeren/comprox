@@ -40,18 +40,16 @@ public class PassthroughBackend implements Backend {
 
         try {
             HttpUriRequest serverRequest = requestFactory.createPassthroughRequest(clientRequest);
+            executePassthroughRequest(serverRequest);
 
-            if (serverRequest != null) {
-                executePassthroughRequest(serverRequest);
-            } else {
-                clientResponse.setStatus(HttpServletResponse.SC_NOT_IMPLEMENTED);
-            }
+            LOGGER.debug("Successfully handled passthrough request: " + clientRequest.getRequestURI());
+        } catch (InvalidRouteException e) {
+            LOGGER.warn("No route to backend for passthrough request: {}", clientRequest.getRequestURI(), e);
+            clientResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
         } catch (Exception e) {
             LOGGER.warn("Failed to successfully handle passthrough request: {}", clientRequest.getRequestURI(), e);
             throw e;
         }
-
-        LOGGER.debug("Successfully handled passthrough request: " + clientRequest.getRequestURI());
     }
 
     private void executePassthroughRequest(HttpUriRequest serverRequest) throws IOException, ServletException {

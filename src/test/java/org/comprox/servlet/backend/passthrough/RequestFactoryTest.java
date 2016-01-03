@@ -1,5 +1,6 @@
 package org.comprox.servlet.backend.passthrough;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
@@ -21,34 +22,36 @@ import static org.junit.Assert.assertThat;
 @RunWith(MockitoJUnitRunner.class)
 public class RequestFactoryTest {
 
-    private final RequestFactory requestFactory = new RequestFactory();
+    private final String requestUri = "/path";
+    private final URI uri = URI.create("http://targethost.com/path");
+
+    private RequestFactory requestFactory = new RequestFactory(ImmutableList.of(new Route(request -> true, "targethost.com", 0)));
+
+    @Mock
+    private Route.RequestMatcher requestMatcher;
 
     @Mock
     private HttpServletRequest clientRequest;
 
     @Test
     public void testShouldCreateBasicGetRequest() throws Exception {
-        String uri = "http://host/path";
-
-        MockHttpServletRequest get = new MockHttpServletRequest("GET", uri);
+        MockHttpServletRequest get = new MockHttpServletRequest("GET", requestUri);
 
         HttpUriRequest backendRequest = requestFactory.createPassthroughRequest(get);
 
         assertThat(backendRequest.getMethod(), is("GET"));
-        assertThat(backendRequest.getURI(), is(URI.create(uri)));
+        assertThat(backendRequest.getURI(), is(uri));
     }
 
     @Test
     public void testShouldCreateGetRequestWithHeaders() throws Exception {
-        String uri = "http://host/path";
-
-        MockHttpServletRequest get = new MockHttpServletRequest("GET", uri);
+        MockHttpServletRequest get = new MockHttpServletRequest("GET", requestUri);
         get.addHeader("header", "value");
 
         HttpUriRequest backendRequest = requestFactory.createPassthroughRequest(get);
 
         assertThat(backendRequest.getMethod(), is("GET"));
-        assertThat(backendRequest.getURI(), is(URI.create(uri)));
+        assertThat(backendRequest.getURI(), is(uri));
 
         Header[] headers = backendRequest.getHeaders("header");
         assertThat(headers.length, is(1));
@@ -57,9 +60,7 @@ public class RequestFactoryTest {
 
     @Test
     public void testShouldCreateGetRequestWithParameters() throws Exception {
-        String uri = "http://host/path";
-
-        MockHttpServletRequest get = new MockHttpServletRequest("GET", uri);
+        MockHttpServletRequest get = new MockHttpServletRequest("GET", requestUri);
         get.addParameter("parameter", new String[]{"value1", "value2"});
 
         HttpUriRequest backendRequest = requestFactory.createPassthroughRequest(get);
@@ -72,15 +73,13 @@ public class RequestFactoryTest {
 
     @Test
     public void testShouldCreatePostRequestWithParameters() throws Exception {
-        String uri = "http://host/path";
-
-        MockHttpServletRequest post = new MockHttpServletRequest("POST", uri);
+        MockHttpServletRequest post = new MockHttpServletRequest("POST", requestUri);
         post.addParameter("parameter", new String[]{"value1", "value2"});
 
         HttpEntityEnclosingRequestBase backendRequest = (HttpEntityEnclosingRequestBase) requestFactory.createPassthroughRequest(post);
 
         assertThat(backendRequest.getMethod(), is("POST"));
-        assertThat(backendRequest.getURI(), is(URI.create(uri)));
+        assertThat(backendRequest.getURI(), is(uri));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         HttpEntity entity = backendRequest.getEntity();
@@ -92,15 +91,13 @@ public class RequestFactoryTest {
 
     @Test
     public void testShouldCreatePostRequestWithRequestBody() throws Exception {
-        String uri = "http://host/path";
-
-        MockHttpServletRequest post = new MockHttpServletRequest("POST", uri);
+        MockHttpServletRequest post = new MockHttpServletRequest("POST", requestUri);
         post.setContent("body".getBytes());
 
         HttpEntityEnclosingRequestBase backendRequest = (HttpEntityEnclosingRequestBase) requestFactory.createPassthroughRequest(post);
 
         assertThat(backendRequest.getMethod(), is("POST"));
-        assertThat(backendRequest.getURI(), is(URI.create(uri)));
+        assertThat(backendRequest.getURI(), is(uri));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         HttpEntity entity = backendRequest.getEntity();

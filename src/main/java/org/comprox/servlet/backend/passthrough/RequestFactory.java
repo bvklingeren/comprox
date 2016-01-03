@@ -8,7 +8,9 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
@@ -17,9 +19,15 @@ import javax.servlet.http.HttpServletRequest;
  */
 public class RequestFactory {
 
+    private final List<Route> routes;
+
+    public RequestFactory(List<Route> routes) {
+        this.routes = routes;
+    }
+
     public HttpUriRequest createPassthroughRequest(HttpServletRequest request) throws IOException {
         final String method = request.getMethod();
-        final String backendUri = createBackendUri(request);
+        final URI backendUri = createBackendUri(request);
 
         RequestBuilder requestBuilder = RequestBuilder.create(method)
                 .setUri(backendUri)
@@ -32,9 +40,12 @@ public class RequestFactory {
         return requestBuilder.build();
     }
 
-    private String createBackendUri(HttpServletRequest request) {
-        // TODO: request URI must be altered to match a valid backend host
-        return request.getRequestURI();
+    private URI createBackendUri(HttpServletRequest request) {
+        return routes.stream()
+                .filter(route -> route.matches(request))
+                .map(route -> route.createUri(request))
+                .findFirst()
+                .orElseThrow(() -> new InvalidRouteException("Unknown route for request with URI: " + request.getRequestURI()));
     }
 
     private void copyHeaders(HttpServletRequest request, RequestBuilder requestBuilder) {
